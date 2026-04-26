@@ -147,6 +147,49 @@ Access in code via `import.meta.env.VITE_API_URL`.
 5. **Don't create new utility functions without checking `src/lib/utils.ts` and `src/hooks/` first.**
    The project already has `cn()`, `useMobile()`, and `useToast()`. Duplicating these creates two sources of truth. Always check existing hooks and utilities before writing new ones.
 
+## ASCII Diagrams — Visual Spec
+
+### In documentation
+When creating or updating any `.md` file, add ASCII diagrams in sections where a visual helps grasp the idea faster than text:
+
+| Context | What to draw |
+|---------|-------------|
+| Architecture | Service blocks with arrows and protocol labels |
+| Project structure | Folder tree with inline explanations |
+| User flow | Screens and transitions with arrows |
+| UI layout | Page blocks with labels and sample data |
+| Component relations | Blocks and import arrows |
+
+Add diagrams inside ` ``` ` blocks. Do not rewrite existing text — only supplement it.
+
+**Examples:**
+
+```
+# Architecture
+┌─────────────┐   props   ┌──────────────────┐
+│  Index.tsx  │ ────────► │  FaqSection.tsx  │
+└─────────────┘           └──────────────────┘
+                                   │ hash
+                                   ▼
+                          ┌──────────────────────┐
+                          │  SeoQuestionsSection │
+                          └──────────────────────┘
+
+# UI layout
+┌────────────────────────────────────────┐
+│  [О психологии] [Организация] [Цены]  │  ← category pills
+├────────────────────────────────────────┤
+│  ▶ Чем психолог отличается...?        │  ← accordion item
+│  ▶ Нужна ли серьёзная проблема?       │
+└────────────────────────────────────────┘
+```
+
+### Before writing new code
+If the task is to add a new screen, module, or integration:
+1. **Draw the ASCII diagram first** (UI wireframe, architecture, user flow, or component relations)
+2. **Show it to the user and wait for confirmation**
+3. Only then write the code
+
 ## What Claude Should Know
 
 - **The actual source code is one level deep.** All `npm` commands, imports, and file edits operate inside `lovable-project-e8950dcd-ba0f-4c25-9abf-b9a85a4d663f-2026-03-15/`. The repo root only contains this subdirectory, a zip archive, and `CLAUDE.md`. Always `cd` into the project directory before running any command.
