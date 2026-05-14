@@ -69,6 +69,128 @@ Telegram-бот, который тренирует навыки коммуник
 - Web-версия / мобильное приложение
 
 
+## Data
+
+### Сущности
+
+#### user
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| telegram_id | BIGINT UNIQUE | ID пользователя в Telegram |
+| username | TEXT \| NULL | @username |
+| role | ENUM('user','admin') | DEFAULT 'user' |
+| is_active | BOOL | DEFAULT true |
+| created_at | TIMESTAMPTZ | |
+
+#### skill
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| name | TEXT | Название навыка |
+| description | TEXT | |
+| created_at | TIMESTAMPTZ | |
+
+#### scenario
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| current_version_id | UUID FK → scenario_version.id | Актуальная версия |
+| created_by | UUID FK → user.id | Автор (admin) |
+| is_active | BOOL | Виден пользователям |
+| archived_at | TIMESTAMPTZ \| NULL | NULL = не архивирован |
+| created_at | TIMESTAMPTZ | |
+
+Связи N:M: **scenario ↔ skill** через `scenario_skill(scenario_id, skill_id)`
+
+#### scenario_version
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| scenario_id | UUID FK → scenario.id | |
+| version | INT | Порядковый номер версии |
+| title | TEXT | Заголовок сценария |
+| context_text | TEXT | Текст ситуации |
+| question_text | TEXT | Вопрос на распознавание |
+| options | JSONB | Варианты ответов: `[{text, score, explanation}]` |
+| difficulty | ENUM('easy','medium','hard') | |
+| created_by | UUID FK → user.id | Кто создал эту версию |
+| created_at | TIMESTAMPTZ | |
+
+#### daily_session
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| user_id | UUID FK → user.id | |
+| date | DATE | Дата сессии |
+| status | ENUM('pending','in_progress','completed') | |
+| created_at | TIMESTAMPTZ | |
+| completed_at | TIMESTAMPTZ \| NULL | |
+
+Связи N:M: **daily_session ↔ scenario** через `daily_session_scenario(session_id, scenario_id, order_index)`
+
+#### user_answer
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| user_id | UUID FK → user.id | |
+| scenario_id | UUID FK → scenario.id | |
+| scenario_version_id | UUID FK → scenario_version.id | Версия на момент ответа |
+| session_id | UUID FK → daily_session.id \| NULL | NULL = вне сессии |
+| selected_option | INT | Индекс выбранного варианта |
+| score | INT | Оценка ответа (0–100) |
+| attempt | INT | Номер попытки по данному сценарию |
+| created_at | TIMESTAMPTZ | |
+
+#### user_skill_progress
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| user_id | UUID FK → user.id | |
+| skill_id | UUID FK → skill.id | |
+| level | INT | Текущий уровень навыка |
+| attempts_total | INT | Всего попыток по этому навыку |
+| attempts_correct | INT | Правильных ответов |
+| updated_at | TIMESTAMPTZ | |
+
+UNIQUE (user_id, skill_id)
+
+---
+
+### Связи между таблицами
+
+```
+                          ┌──────────┐
+                          │   user   │
+                          └──┬──┬──┬─┘
+                       1:N   │  │  │   1:N
+                ┌────────────┘  │  └──────────────────┐
+                │           1:N │                      │
+                ▼               ▼                      ▼
+    ┌─────────────────┐  ┌─────────────┐  ┌────────────────────────┐
+    │  daily_session  │  │ user_answer │  │  user_skill_progress   │
+    └────────┬────────┘  └──┬──────┬──┘  └──────────────┬─────────┘
+             │ N:M          │ N:1  │ N:1                 │ N:1
+    (via daily_session_     │      │                     │
+      _scenario)            │      │                     │
+             │              ▼      ▼                     ▼
+             └─────────►┌──────────┐  ┌──────────────────┐  ┌──────────┐
+                        │ scenario │──► scenario_version  │  │  skill   │
+                        └──────────┘1:N└──────────────────┘  └────▲─────┘
+                             │                                     │
+                             └──────────────── N:M ───────────────┘
+                                          (via scenario_skill)
+```
+
+**Джанкшн-таблицы (не считаются основными сущностями):**
+
+| Таблица | Колонки | Назначение |
+|---------|---------|-----------|
+| `scenario_skill` | scenario_id, skill_id | Какие навыки тренирует сценарий |
+| `daily_session_scenario` | session_id, scenario_id, order_index | Какие сценарии входят в дневную сессию |
+
+---
+
 ## Tech Stack
 
 | Компонент | Технология | Почему | Бесплатно? |
