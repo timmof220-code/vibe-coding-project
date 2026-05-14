@@ -189,6 +189,81 @@ UNIQUE (user_id, skill_id)
 | `scenario_skill` | scenario_id, skill_id | Какие навыки тренирует сценарий |
 | `daily_session_scenario` | session_id, scenario_id, order_index | Какие сценарии входят в дневную сессию |
 
+### ER-диаграмма (Mermaid)
+
+```mermaid
+erDiagram
+    user {
+        uuid id PK
+        bigint telegram_id
+        text username
+        enum role
+        bool is_active
+        timestamptz created_at
+    }
+    skill {
+        uuid id PK
+        text name
+        text description
+    }
+    scenario {
+        uuid id PK
+        uuid current_version_id FK
+        uuid created_by FK
+        bool is_active
+        timestamptz archived_at
+    }
+    scenario_version {
+        uuid id PK
+        uuid scenario_id FK
+        int version
+        text title
+        text context_text
+        text question_text
+        jsonb options
+        enum difficulty
+        uuid created_by FK
+    }
+    daily_session {
+        uuid id PK
+        uuid user_id FK
+        date date
+        enum status
+        timestamptz completed_at
+    }
+    user_answer {
+        uuid id PK
+        uuid user_id FK
+        uuid scenario_id FK
+        uuid scenario_version_id FK
+        uuid session_id FK
+        int selected_option
+        int score
+        int attempt
+        timestamptz created_at
+    }
+    user_skill_progress {
+        uuid id PK
+        uuid user_id FK
+        uuid skill_id FK
+        int level
+        int attempts_total
+        int attempts_correct
+        timestamptz updated_at
+    }
+
+    user           ||--o{ daily_session        : "has"
+    user           ||--o{ user_answer          : "has"
+    user           ||--o{ user_skill_progress  : "has"
+    daily_session  }o--o{ scenario             : "contains"
+    scenario       ||--o{ scenario_version     : "has"
+    scenario       }o--o{ skill                : "tagged_with"
+    user_answer    }o--|| scenario             : "for"
+    user_answer    }o--|| scenario_version     : "at"
+    user_answer    }o--o| daily_session        : "within"
+    user_skill_progress }o--|| skill           : "tracks"
+```
+
 ---
 
 ## Tech Stack
