@@ -1,0 +1,278 @@
+# EQ Trainer Bot — Product Spec
+
+## PRD
+
+**Название проекта:**
+Тренажёр реакций в коммуникациях (EQ Trainer Bot)
+
+**Описание:**
+Telegram-бот, который тренирует навыки коммуникации в сложных ситуациях (конфликты, давление, пассивная агрессия).
+Пользователь проходит короткие сценарии, выбирает или формулирует ответы, получает разбор и прокачивает конкретные навыки.
+Продукт помогает перестать "теряться в моменте" и научиться правильно реагировать в реальной жизни.
+
+**Целевая аудитория:**
+
+Основной сегмент:
+- люди с IT/продуктовым бэкграундом, интересующиеся психологией и саморазвитием
+
+Дополнительно:
+- специалисты и менеджеры, регулярно сталкивающиеся со сложными коммуникациями
+- люди, которые хотят прокачать уверенность и поведение в конфликтах
+
+**Ключевая проблема:**
+Люди не понимают:
+- что происходит в сложной коммуникации (давление, манипуляция, эмоции)
+- как правильно реагировать в моменте
+
+Сейчас решения:
+- либо теоретические (курсы, книги)
+- либо поверхностные тесты без практики
+
+Нет инструмента, который даёт регулярную тренировку + разбор + применение в реальных сценариях.
+
+**Устройства:** MVP — Telegram-бот (мобильный + десктоп через Telegram)
+
+**Бюджет на хостинг:** $0–10/месяц
+
+**Дедлайн MVP:**
+- 2–3 месяца до первого рабочего прототипа
+- 3–4 недели до базовой версии для тестирования (alpha)
+
+
+## Requirements
+
+### MVP (обязательно для первой версии)
+
+- Сценарии тренировок (30–50 кейсов)
+- Механика прохождения сценария
+- Вопрос на распознавание
+- Оценка ответа
+- Разбор ответа
+- Микро-обучение
+- Система навыков
+- Начальный прогресс-трекинг
+- Ежедневный формат
+- Простая логика Telegram-бота
+
+### Nice-to-have (добавим потом)
+
+- Свободный ввод ответов + AI-разбор
+- Персонализация сценариев
+- Адаптивная сложность
+- Расширенная система навыков
+- Детальная аналитика
+- "Как бы ответил психолог" (эталонные ответы)
+- Геймификация
+- Контент, сгенерированный AI
+- Напоминания / пуши
+- Платная модель
+- Web-версия / мобильное приложение
+
+
+## Data
+
+### Сущности
+
+#### user
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| telegram_id | BIGINT UNIQUE | ID пользователя в Telegram |
+| username | TEXT \| NULL | @username |
+| role | ENUM('user','admin') | DEFAULT 'user' |
+| is_active | BOOL | DEFAULT true |
+| created_at | TIMESTAMPTZ | |
+
+#### skill
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| name | TEXT | Название навыка |
+| description | TEXT | |
+| created_at | TIMESTAMPTZ | |
+
+#### scenario
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| current_version_id | UUID FK → scenario_version.id | Актуальная версия |
+| created_by | UUID FK → user.id | Автор (admin) |
+| is_active | BOOL | Виден пользователям |
+| archived_at | TIMESTAMPTZ \| NULL | NULL = не архивирован |
+| created_at | TIMESTAMPTZ | |
+
+Связи N:M: **scenario ↔ skill** через `scenario_skill(scenario_id, skill_id)`
+
+#### scenario_version
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| scenario_id | UUID FK → scenario.id | |
+| version | INT | Порядковый номер версии |
+| title | TEXT | Заголовок сценария |
+| context_text | TEXT | Текст ситуации |
+| question_text | TEXT | Вопрос на распознавание |
+| options | JSONB | Варианты ответов: `[{text, score, explanation}]` |
+| difficulty | ENUM('easy','medium','hard') | |
+| created_by | UUID FK → user.id | Кто создал эту версию |
+| created_at | TIMESTAMPTZ | |
+
+#### daily_session
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| user_id | UUID FK → user.id | |
+| date | DATE | Дата сессии |
+| status | ENUM('pending','in_progress','completed') | |
+| created_at | TIMESTAMPTZ | |
+| completed_at | TIMESTAMPTZ \| NULL | |
+
+Связи N:M: **daily_session ↔ scenario** через `daily_session_scenario(session_id, scenario_id, order_index)`
+
+#### user_answer
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| user_id | UUID FK → user.id | |
+| scenario_id | UUID FK → scenario.id | |
+| scenario_version_id | UUID FK → scenario_version.id | Версия на момент ответа |
+| session_id | UUID FK → daily_session.id \| NULL | NULL = вне сессии |
+| selected_option | INT | Индекс выбранного варианта |
+| score | INT | Оценка ответа (0–100) |
+| attempt | INT | Номер попытки по данному сценарию |
+| created_at | TIMESTAMPTZ | |
+
+#### user_skill_progress
+| Поле | Тип | Описание |
+|------|-----|---------|
+| id | UUID PK | |
+| user_id | UUID FK → user.id | |
+| skill_id | UUID FK → skill.id | |
+| level | INT | Текущий уровень навыка |
+| attempts_total | INT | Всего попыток по этому навыку |
+| attempts_correct | INT | Правильных ответов |
+| updated_at | TIMESTAMPTZ | |
+
+UNIQUE (user_id, skill_id)
+
+---
+
+### Связи между таблицами
+
+```
+                          ┌──────────┐
+                          │   user   │
+                          └──┬──┬──┬─┘
+                       1:N   │  │  │   1:N
+                ┌────────────┘  │  └──────────────────┐
+                │           1:N │                      │
+                ▼               ▼                      ▼
+    ┌─────────────────┐  ┌─────────────┐  ┌────────────────────────┐
+    │  daily_session  │  │ user_answer │  │  user_skill_progress   │
+    └────────┬────────┘  └──┬──────┬──┘  └──────────────┬─────────┘
+             │ N:M          │ N:1  │ N:1                 │ N:1
+    (via daily_session_     │      │                     │
+      _scenario)            │      │                     │
+             │              ▼      ▼                     ▼
+             └─────────►┌──────────┐  ┌──────────────────┐  ┌──────────┐
+                        │ scenario │──► scenario_version  │  │  skill   │
+                        └──────────┘1:N└──────────────────┘  └────▲─────┘
+                             │                                     │
+                             └──────────────── N:M ───────────────┘
+                                          (via scenario_skill)
+```
+
+**Джанкшн-таблицы (не считаются основными сущностями):**
+
+| Таблица | Колонки | Назначение |
+|---------|---------|-----------|
+| `scenario_skill` | scenario_id, skill_id | Какие навыки тренирует сценарий |
+| `daily_session_scenario` | session_id, scenario_id, order_index | Какие сценарии входят в дневную сессию |
+
+### ER-диаграмма (Mermaid)
+
+```mermaid
+erDiagram
+    user {
+        uuid id PK
+        bigint telegram_id
+        text username
+        enum role
+        bool is_active
+        timestamptz created_at
+    }
+    skill {
+        uuid id PK
+        text name
+        text description
+    }
+    scenario {
+        uuid id PK
+        uuid current_version_id FK
+        uuid created_by FK
+        bool is_active
+        timestamptz archived_at
+    }
+    scenario_version {
+        uuid id PK
+        uuid scenario_id FK
+        int version
+        text title
+        text context_text
+        text question_text
+        jsonb options
+        enum difficulty
+        uuid created_by FK
+    }
+    daily_session {
+        uuid id PK
+        uuid user_id FK
+        date date
+        enum status
+        timestamptz completed_at
+    }
+    user_answer {
+        uuid id PK
+        uuid user_id FK
+        uuid scenario_id FK
+        uuid scenario_version_id FK
+        uuid session_id FK
+        int selected_option
+        int score
+        int attempt
+        timestamptz created_at
+    }
+    user_skill_progress {
+        uuid id PK
+        uuid user_id FK
+        uuid skill_id FK
+        int level
+        int attempts_total
+        int attempts_correct
+        timestamptz updated_at
+    }
+
+    user           ||--o{ daily_session        : "has"
+    user           ||--o{ user_answer          : "has"
+    user           ||--o{ user_skill_progress  : "has"
+    daily_session  }o--o{ scenario             : "contains"
+    scenario       ||--o{ scenario_version     : "has"
+    scenario       }o--o{ skill                : "tagged_with"
+    user_answer    }o--|| scenario             : "for"
+    user_answer    }o--|| scenario_version     : "at"
+    user_answer    }o--o| daily_session        : "within"
+    user_skill_progress }o--|| skill           : "tracks"
+```
+
+---
+
+## Tech Stack
+
+| Компонент | Технология | Почему | Бесплатно? |
+|---|---|---|---|
+| Канал / интерфейс | Telegram Bot API | MVP живёт в Telegram; формат сценариев с выбором ответа | Да |
+| Язык / логика бота | Python 3.12 + aiogram | Простой старт, много примеров | Да |
+| API / серверная логика | FastAPI | Разделение логики сценариев, оценки и прогресса | Да |
+| База данных | Supabase Postgres | Хранение пользователей, сценариев, ответов, прогресса | Да |
+| Хостинг backend | Google Cloud Run | Бесплатный лимит на старте | Условно да |
+| Аналитика | PostHog | Воронки и retention | Да |
