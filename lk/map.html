@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Поиск рядом с точкой · ЛК Маркет вакансий — Ventra GO!</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app">
+  <div id="shell"></div>
+  <div class="main">
+    <div class="topbar">
+      <div><h1>Поиск кандидатов рядом с точкой</h1><div class="sub">Выберите торговую точку и радиус — найдём кандидатов вокруг</div></div>
+      <button class="btn primary" id="exp">⤓ Выгрузить кандидатов</button>
+    </div>
+    <div class="content">
+      <div class="map-layout">
+        <div>
+          <div class="panel">
+            <div class="head"><h3>Параметры</h3></div>
+            <div class="body">
+              <div class="section-title mt0">Торговая точка</div>
+              <select id="store" style="width:100%"></select>
+
+              <div class="section-title mt16">Радиус поиска</div>
+              <div class="radius-pills" id="pills">
+                <button data-r="1">1 км</button>
+                <button data-r="2" class="active">2 км</button>
+                <button data-r="3">3 км</button>
+                <button data-r="5">5 км</button>
+              </div>
+
+              <div class="section-title mt16">Фильтр по должности</div>
+              <select id="job" style="width:100%"></select>
+
+              <div class="card mt16" style="box-shadow:none;background:var(--green-soft);border-color:#bfe9d4">
+                <div class="muted" style="font-size:13px">Найдено в радиусе</div>
+                <div style="font-size:30px;font-weight:800;color:var(--green-dark)" id="found">0</div>
+                <div class="muted" style="font-size:12px" id="storeAddr"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel mt16">
+            <div class="head"><h3>Кандидаты <span id="cnt" class="muted"></span></h3></div>
+            <div class="body" id="list" style="max-height:340px;overflow:auto"></div>
+          </div>
+        </div>
+
+        <div id="map"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+mountShell("map.html");
+const storeSel = document.getElementById("store");
+STORES.forEach(s => storeSel.insertAdjacentHTML("beforeend", `<option value="${s.id}">${s.brand} · ${s.title}</option>`));
+fillSelect(document.getElementById("job"), DICT.job_type, { all: "Все должности" });
+
+let radius = 2;
+const map = L.map("map").setView([STORES[0].lat, STORES[0].lng], 13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap", maxZoom: 19 }).addTo(map);
+
+let circle, storeMarker, candMarkers = [];
+const candIcon = L.divIcon({ className: "", html: '<div style="width:14px;height:14px;border-radius:50%;background:#12B76A;border:2px solid #fff;box-shadow:0 0 0 2px #12B76A55"></div>', iconSize:[14,14] });
+const storeIcon = L.divIcon({ className: "", html: '<div style="font-size:26px;line-height:1">📍</div>', iconSize:[26,26], iconAnchor:[13,26] });
+
+function update() {
+  const s = STORES.find(x => x.id === storeSel.value);
+  const jobF = document.getElementById("job").value;
+  map.setView([s.lat, s.lng], radius<=1?14: radius<=3?13:12);
+
+  if (circle) circle.remove(); if (storeMarker) storeMarker.remove();
+  candMarkers.forEach(m=>m.remove()); candMarkers = [];
+
+  circle = L.circle([s.lat, s.lng], { radius: radius*1000, color: "#12B76A", fillColor: "#12B76A", fillOpacity: .08, weight: 2 }).addTo(map);
+  storeMarker = L.marker([s.lat, s.lng], { icon: storeIcon }).addTo(map).bindPopup(`<b>${s.brand}</b><br>${s.title}<br>${s.address}`);
+
+  const near = CANDIDATES
+    .map(c => ({ ...c, dist: distanceKm(s, c) }))
+    .filter(c => c.dist <= radius && (!jobF || c.job === jobF))
+    .sort((a,b) => a.dist - b.dist);
+
+  near.forEach(c => {
+    const m = L.marker([c.lat, c.lng], { icon: candIcon }).addTo(map)
+      .bindPopup(`<b>${c.full_name}</b><br>${c.job}<br>${c.gender}, ${c.age} лет · ${c.dist.toFixed(1)} км`);
+    candMarkers.push(m);
+  });
+
+  document.getElementById("found").textContent = near.length;
+  document.getElementById("cnt").textContent = `· ${near.length}`;
+  document.getElementById("storeAddr").textContent = s.address;
+  document.getElementById("list").innerHTML = near.length ? near.map(c => `
+    <div class="cand">
+      <div class="ava">${c.full_name.split(' ').map(x=>x[0]).join('')}</div>
+      <div class="d" style="flex:1">
+        <b>${c.full_name}</b><br>
+        <span>${c.job} · ${c.gender}, ${c.age} лет</span>
+      </div>
+      <span class="badge green">${c.dist.toFixed(1)} км</span>
+    </div>`).join("") : `<p class="muted" style="text-align:center;padding:20px">Нет кандидатов в радиусе ${radius} км</p>`;
+
+  window._near = near;
+}
+
+document.getElementById("pills").addEventListener("click", e => {
+  if (e.target.dataset.r) {
+    document.querySelectorAll("#pills button").forEach(b=>b.classList.remove("active"));
+    e.target.classList.add("active"); radius = +e.target.dataset.r; update();
+  }
+});
+storeSel.onchange = update;
+document.getElementById("job").onchange = update;
+document.getElementById("exp").onclick = () => exportCSV("Кандидаты_рядом.csv", window._near||[], [
+  {label:"ФИО", get:c=>c.full_name},{label:"Должность", get:c=>c.job},{label:"Опыт", get:c=>c.exp},
+  {label:"Пол", get:c=>c.gender},{label:"Возраст", get:c=>c.age},{label:"Расстояние, км", get:c=>c.dist.toFixed(2)},
+]);
+update();
+</script>
+</body>
+</html>

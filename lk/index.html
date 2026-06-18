@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дашборд · ЛК Маркет вакансий — Ventra GO!</title>
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app">
+  <div id="shell"></div>
+  <div class="main">
+    <div class="topbar">
+      <div><h1>Дашборд</h1><div class="sub">Сводка по вакансиям и откликам · 18 июня 2026</div></div>
+      <div class="flex">
+        <a class="btn" href="responses.html">Все отклики</a>
+        <a class="btn primary" href="vacancy-new.html"><span>➕</span> Новая вакансия</a>
+      </div>
+    </div>
+    <div class="content">
+      <div class="cards" id="stats"></div>
+
+      <div class="mt24" style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px">
+        <div class="panel">
+          <div class="head"><h3>Активные вакансии</h3><a class="btn sm" href="vacancies.html">Все вакансии →</a></div>
+          <div class="body" style="padding:0">
+            <table><thead><tr><th>Вакансия</th><th>Бренд</th><th>Зарплата</th><th>Отклики</th><th>Статус</th></tr></thead>
+            <tbody id="vacRows"></tbody></table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="head"><h3>Скоро истекает публикация</h3></div>
+          <div class="body" id="expiring"></div>
+        </div>
+      </div>
+
+      <div class="panel mt16">
+        <div class="head"><h3>Последние отклики</h3><a class="btn sm" href="responses.html">Перейти →</a></div>
+        <div class="body" style="padding:0">
+          <table><thead><tr><th>Кандидат</th><th>Вакансия</th><th>Регион</th><th>Дата</th><th>Статус</th></tr></thead>
+          <tbody id="leadRows"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+mountShell("index.html");
+const active = VACANCIES.filter(v => v.status === "active");
+const stats = [
+  { label: "Активные вакансии", value: active.length, delta: "+2 за неделю", cls: "up" },
+  { label: "Всего откликов", value: LEADS.length, delta: `+${LEADS.filter(l=>l.created_at>='2026-06-15').length} новых`, cls: "up" },
+  { label: "Новые (не просмотрены)", value: LEADS.filter(l=>l.status==="Новый").length, delta: "требуют внимания", cls: "warn" },
+  { label: "Истекают за 3 дня", value: VACANCIES.filter(v=>v.expires_at<='2026-06-21'&&v.status==='active').length, delta: "продлите публикацию", cls: "warn" },
+];
+document.getElementById("stats").innerHTML = stats.map(s =>
+  `<div class="card stat"><div class="label">${s.label}</div><div class="value">${s.value}</div><div class="delta ${s.cls}">${s.delta}</div></div>`).join("");
+
+document.getElementById("vacRows").innerHTML = active.map(v =>
+  `<tr><td><div class="ttl">${v.job_type}</div><div class="sub">${v.advertisement_id}</div></td>
+   <td>${v.brand}</td><td>${money(v.wage)}</td>
+   <td><a href="responses.html"><span class="badge blue">${v.leads}</span></a></td>
+   <td>${statusBadge(v.status)}</td></tr>`).join("");
+
+document.getElementById("expiring").innerHTML = VACANCIES.filter(v=>v.status==='active')
+  .sort((a,b)=>a.expires_at.localeCompare(b.expires_at)).slice(0,4).map(v =>
+  `<div class="spread" style="padding:10px 0;border-bottom:1px solid var(--line)">
+     <div><div class="ttl">${v.job_type}</div><div class="sub">${v.brand} · до ${v.expires_at.split('-').reverse().join('.')}</div></div>
+     <button class="btn sm" onclick="toast('Публикация продлена на 7 дней')">Продлить</button>
+   </div>`).join("");
+
+document.getElementById("leadRows").innerHTML = LEADS.slice().sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,6).map(l =>
+  `<tr><td><div class="ttl">${l.full_name}</div><div class="sub">${l.phone}</div></td>
+   <td>${l.job_type}</td><td>${l.region}</td><td>${l.created_at.split('-').reverse().join('.')}</td>
+   <td><span class="badge ${l.status==='Новый'?'green':l.status==='Приглашён'?'blue':'gray'}">${l.status}</span></td></tr>`).join("");
+</script>
+</body>
+</html>

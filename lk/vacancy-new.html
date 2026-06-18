@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Новая вакансия · ЛК Маркет вакансий — Ventra GO!</title>
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app">
+  <div id="shell"></div>
+  <div class="main">
+    <div class="topbar">
+      <div><h1>Создание вакансий</h1><div class="sub">Поштучно или массово через Excel</div></div>
+      <div class="tabs">
+        <button class="active" data-tab="one">Поштучно</button>
+        <button data-tab="excel">Импорт из Excel</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- ====== ПОШТУЧНО ====== -->
+      <div class="tabpane active" id="one">
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start">
+          <div class="panel">
+            <div class="head"><h3>Параметры вакансии</h3>
+              <select id="applyTpl" style="min-width:220px"><option value="">— применить шаблон —</option></select></div>
+            <div class="body">
+              <form id="vForm" class="form-grid">
+                <div class="field"><label>Бренд <span class="req">*</span></label><select name="brand" required id="i_brand"></select></div>
+                <div class="field"><label>Должность <span class="req">*</span></label><select name="job_type" required id="i_job"></select></div>
+
+                <div class="field full"><label>Описание вакансии <span class="req">*</span></label>
+                  <textarea name="description" placeholder="4 блока: О компании / Условия / Обязанности / Призыв" required></textarea>
+                  <span class="hint">Ссылки отображаются как ссылки. Поддерживаются 4 смысловых блока.</span></div>
+
+                <div class="field"><label>Тип занятости <span class="req">*</span></label><select name="employment_type" id="i_emp"></select></div>
+                <div class="field"><label>Формат работы</label><select name="work_format" id="i_format"></select></div>
+                <div class="field"><label>График работы</label><select name="work_schedule" id="i_sched"></select></div>
+                <div class="field"><label>Опыт работы</label><select name="experience" id="i_exp"></select></div>
+
+                <div class="field"><label>Зарплата от, ₽ <span class="req">*</span></label><input type="number" name="wage_from" placeholder="55000" required></div>
+                <div class="field"><label>Зарплата до, ₽</label><input type="number" name="wage_to" placeholder="если нет потолка = от"></div>
+
+                <div class="field full"><label>Адрес (город, улица, дом) <span class="req">*</span></label>
+                  <input type="text" name="address" placeholder="Москва, Ходынский б-р, 4" id="i_addr">
+                  <span class="hint">Обязателен, кроме вахты/удалённой. Только РФ.</span></div>
+
+                <div class="field"><label>Метро</label><input type="text" name="metro" placeholder="ЦСКА"></div>
+                <div class="field"><label>Срок публикации <span class="req">*</span></label><input type="date" name="expires_at"><span class="hint">По умолчанию +7 дней</span></div>
+
+                <div class="field full"><label>Ключевые навыки</label>
+                  <input type="text" name="key_skills" placeholder="Через запятую: касса, 1С, общение">
+                  <span class="hint">Один навык = один тег.</span></div>
+
+                <div class="field"><label>Пол <span class="badge gray">скрыто от исполнителей</span></label><select name="gender" id="i_gender"></select></div>
+                <div class="field"><label>Возраст от <span class="badge gray">для бэк-фильтрации</span></label><input type="number" name="age_from" placeholder="18"></div>
+              </form>
+            </div>
+          </div>
+
+          <div class="panel" style="position:sticky;top:88px">
+            <div class="head"><h3>Действия</h3></div>
+            <div class="body">
+              <button class="btn primary" style="width:100%" onclick="publish()">✓ Опубликовать вакансию</button>
+              <button class="btn mt8" style="width:100%" onclick="saveTpl()">🗂 Сохранить как шаблон</button>
+              <button class="btn ghost mt8" style="width:100%" onclick="toast('Черновик сохранён')">Сохранить черновик</button>
+              <div class="section-title mt24">Эндпоинт</div>
+              <code class="chip" style="white-space:normal">POST /api/v4/permanent-vacancies</code>
+              <p class="hint mt8">Идемпотентность по advertisement_id + brand. Если expires_at пуст — публикация на 7 дней.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== ИМПОРТ EXCEL ====== -->
+      <div class="tabpane" id="excel">
+        <div class="panel">
+          <div class="head"><h3>Массовая загрузка вакансий</h3>
+            <button class="btn sm" onclick="toast('Скачивание шаблона шаблон_загрузки_вакансий.xlsx')">⤓ Скачать шаблон Excel</button></div>
+          <div class="body">
+            <div class="dropzone" id="drop" onclick="document.getElementById('file').click()">
+              <div class="big">📄</div>
+              <p><b>Перетащите .xlsx сюда</b> или нажмите, чтобы выбрать файл</p>
+              <p class="hint">Поддерживается шаблон Ventra GO! с листами «Вакансии» и «Справочник»</p>
+              <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+            </div>
+
+            <div id="preview" style="display:none">
+              <div class="spread mt24">
+                <div class="section-title mt0">Превью загрузки · <span id="pName"></span></div>
+                <div class="flex">
+                  <span class="badge green" id="pOk"></span>
+                  <span class="badge red" id="pErr"></span>
+                </div>
+              </div>
+              <div style="overflow:auto;border:1px solid var(--line);border-radius:12px" class="mt8">
+                <table>
+                  <thead><tr><th></th><th>Бренд *</th><th>Должность *</th><th>Тип занятости *</th><th>Зарплата от *</th><th>Зарплата до</th><th>Адрес *</th><th>Срок *</th><th>Проверка</th></tr></thead>
+                  <tbody id="pRows"></tbody>
+                </table>
+              </div>
+              <div class="flex mt16">
+                <button class="btn primary" onclick="toast('Импортировано: валидные строки опубликованы')">✓ Импортировать валидные</button>
+                <button class="btn" onclick="resetImport()">Загрузить другой файл</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel mt16">
+          <div class="head"><h3>Колонки шаблона</h3></div>
+          <div class="body">
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <span class="chip">Бренд *</span><span class="chip">Должность *</span><span class="chip">Описание *</span>
+              <span class="chip">Тип занятости *</span><span class="chip">Зарплата от *</span><span class="chip">Зарплата до *</span>
+              <span class="chip">Адрес *</span><span class="chip">Срок публикации *</span><span class="chip">Формат работы</span>
+              <span class="chip">График работы</span><span class="chip">Опыт работы</span><span class="chip">Метро</span>
+              <span class="chip">Ключевые навыки</span><span class="chip">Пол</span><span class="chip">Возраст от</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+mountShell("vacancy-new.html");
+fillSelect(i_brand, DICT.brands); fillSelect(i_job, DICT.job_type);
+fillSelect(i_emp, DICT.employment_type); fillSelect(i_format, DICT.work_format);
+fillSelect(i_sched, DICT.work_schedule); fillSelect(i_exp, DICT.experience);
+fillSelect(i_gender, DICT.gender);
+DICT.brands && (i_addr.setAttribute('list','addrs'));
+
+// шаблоны в селект
+const at = document.getElementById("applyTpl");
+TEMPLATES.forEach(t => at.insertAdjacentHTML("beforeend", `<option value="${t.id}">${t.name}</option>`));
+at.onchange = () => {
+  const t = TEMPLATES.find(x=>x.id===at.value); if(!t) return;
+  vForm.brand.value=t.brand; vForm.job_type.value=t.job_type; vForm.employment_type.value=t.employment_type; vForm.work_schedule.value=t.schedule;
+  toast(`Применён шаблон: ${t.name}`);
+};
+
+// табы
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".tabpane").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active"); document.getElementById(b.dataset.tab).classList.add("active");
+});
+
+function publish() {
+  const req = ["brand","job_type","description","wage_from"];
+  for (const r of req) if (!vForm[r].value) { toast("Заполните обязательные поля *"); vForm[r].focus(); return; }
+  const isRemoteOrVahta = vForm.work_format.value==="Удаленно" || vForm.employment_type.value==="Вахта";
+  if (!isRemoteOrVahta && !vForm.address.value) { toast("Адрес обязателен (кроме вахты/удалённой)"); return; }
+  toast(`Вакансия «${vForm.job_type.value}» опубликована`);
+}
+function saveTpl() { if(!vForm.job_type.value){toast('Выберите должность');return;} toast(`Шаблон «${vForm.job_type.value}» сохранён`); }
+
+// Импорт — имитация парсинга
+const sample = [
+  ["Перекрёсток","Кассир","Полная","55000","70000","Москва, Ходынский б-р, 4","28.06.2026", true],
+  ["Пятёрочка","Продавец-кассир","Частичная","40000","52000","Москва, ул. Тверская, 12","19.06.2026", true],
+  ["ВкусВилл","Сборщик заказов","Вахта","80000","120000","","05.07.2026", true],
+  ["Магнит","","Полная","","","Москва, ул. Лесная, 5","","ERR: пустая должность и зарплата"],
+  ["Снежная королева","Продавец-консультант","Полная","60000","85000","Не Россия, Минск","30.06.2026","ERR: адрес вне РФ"],
+];
+function showPreview(name) {
+  document.getElementById("drop").style.display="none";
+  document.getElementById("preview").style.display="block";
+  document.getElementById("pName").textContent = name;
+  let ok=0, err=0;
+  document.getElementById("pRows").innerHTML = sample.map((r,i) => {
+    const valid = r[7]===true;
+    valid?ok++:err++;
+    return `<tr style="${valid?'':'background:var(--red-soft)'}">
+      <td>${i+1}</td><td>${r[0]}</td><td>${r[1]||'<span class="muted">—</span>'}</td><td>${r[2]}</td>
+      <td>${r[3]||'—'}</td><td>${r[4]||'—'}</td><td class="sub">${r[5]||'—'}</td><td>${r[6]||'—'}</td>
+      <td>${valid?'<span class="badge green">OK</span>':'<span class="badge red">'+r[7]+'</span>'}</td></tr>`;
+  }).join("");
+  document.getElementById("pOk").textContent = `${ok} валидны`;
+  document.getElementById("pErr").textContent = `${err} с ошибками`;
+}
+function resetImport(){ document.getElementById("preview").style.display="none"; document.getElementById("drop").style.display="block"; }
+document.getElementById("file").onchange = e => { if(e.target.files[0]) showPreview(e.target.files[0].name); };
+const dz = document.getElementById("drop");
+dz.addEventListener("dragover", e=>{e.preventDefault(); dz.style.borderColor="var(--green)";});
+dz.addEventListener("dragleave", ()=> dz.style.borderColor="");
+dz.addEventListener("drop", e=>{e.preventDefault(); showPreview((e.dataTransfer.files[0]||{name:'вакансии.xlsx'}).name);});
+</script>
+</body>
+</html>

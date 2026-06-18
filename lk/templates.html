@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Шаблоны · ЛК Маркет вакансий — Ventra GO!</title>
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app">
+  <div id="shell"></div>
+  <div class="main">
+    <div class="topbar">
+      <div><h1>Шаблоны вакансий</h1><div class="sub">Сохраняйте часто публикуемые вакансии и используйте повторно</div></div>
+      <a class="btn primary" href="vacancy-new.html"><span>➕</span> Создать шаблон</a>
+    </div>
+    <div class="content">
+      <div class="cards" id="grid"></div>
+    </div>
+  </div>
+</div>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+mountShell("templates.html");
+function render() {
+  document.getElementById("grid").innerHTML = TEMPLATES.map(t => `
+    <div class="card">
+      <div class="spread"><span class="badge gray">${t.brand}</span><span class="muted" style="font-size:12px">обновлён ${t.updated.split('-').reverse().join('.')}</span></div>
+      <h3 style="margin:12px 0 4px">${t.name}</h3>
+      <div class="muted" style="font-size:13px">${t.job_type}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin:12px 0">
+        <span class="chip">${t.employment_type}</span><span class="chip">${t.schedule}</span><span class="chip">${t.wage}</span>
+      </div>
+      <div class="muted" style="font-size:12px">Использован ${t.used} раз</div>
+      <div class="flex mt16">
+        <a class="btn sm primary" href="vacancy-new.html" onclick="sessionStorage.tpl='${t.id}'">Применить</a>
+        <button class="btn sm" onclick="toast('Шаблон скопирован')">⧉</button>
+        <button class="btn sm danger" onclick="if(confirm('Удалить шаблон?')){this.closest('.card').remove();toast('Шаблон удалён')}">Удалить</button>
+      </div>
+    </div>`).join("");
+}
+render();
+</script>
+</body>
+</html>

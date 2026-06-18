@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Отклики · ЛК Маркет вакансий — Ventra GO!</title>
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app">
+  <div id="shell"></div>
+  <div class="main">
+    <div class="topbar">
+      <div><h1>Отклики</h1><div class="sub">Все отклики по вакансиям клиента</div></div>
+      <div class="flex">
+        <button class="btn" id="expSel">⤓ Выгрузить выбранную вакансию</button>
+        <button class="btn primary" id="expAll">⤓ Выгрузить все отклики</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="tabs mt0" style="margin-bottom:16px">
+        <button class="active" data-mode="all">Все отклики</button>
+        <button data-mode="byvac">По вакансии</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="search"><input id="q" placeholder="Поиск по ФИО или телефону…"></div>
+        <select id="fVac"></select>
+        <select id="fBrand"></select>
+        <select id="fRegion"></select>
+        <select id="fGender"><option value="">Любой пол</option><option>Мужской</option><option>Женский</option></select>
+        <select id="fStatus"><option value="">Все статусы</option><option>Новый</option><option>Просмотрен</option><option>Приглашён</option></select>
+        <input type="number" id="ageMin" placeholder="возраст от" style="width:120px">
+        <input type="number" id="ageMax" placeholder="до" style="width:90px">
+        <input type="date" id="dateFrom" title="Дата отклика с">
+        <button class="btn ghost sm" id="reset">Сбросить</button>
+      </div>
+
+      <div class="panel">
+        <div class="head"><h3>Отклики <span id="count" class="muted"></span></h3>
+          <span class="hint">GET /api/permanent-vacancy/leads?from&to</span></div>
+        <div class="body" style="padding:0;overflow:auto">
+          <table>
+            <thead><tr><th>ФИО</th><th>Телефон</th><th>Email</th><th>Пол</th><th>Возраст</th><th>Регион</th><th>Вакансия</th><th>Бренд</th><th>Дата</th><th>Статус</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+mountShell("responses.html");
+const vacSel = document.getElementById("fVac");
+vacSel.insertAdjacentHTML("beforeend", `<option value="">Все вакансии</option>`);
+VACANCIES.forEach(v => vacSel.insertAdjacentHTML("beforeend", `<option value="${v.advertisement_id}">${v.job_type} · ${v.advertisement_id}</option>`));
+fillSelect(document.getElementById("fBrand"), DICT.brands, { all: "Все бренды" });
+fillSelect(document.getElementById("fRegion"), DICT.regions, { all: "Все регионы" });
+
+let mode = "all";
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active"); mode = b.dataset.mode;
+  // в режиме "По вакансии" подсвечиваем фильтр вакансии
+  vacSel.style.boxShadow = mode==="byvac" ? "0 0 0 3px var(--green-soft)" : "";
+  if (mode==="byvac" && !vacSel.value) vacSel.selectedIndex = 1;
+  apply();
+});
+
+function filtered() {
+  const q = document.getElementById("q").value.toLowerCase().trim();
+  const fv=fVac.value, fb=fBrand.value, fr=fRegion.value, fg=fGender.value, fs=fStatus.value;
+  const aMin=+ageMin.value||0, aMax=+ageMax.value||999, df=dateFrom.value;
+  return LEADS.filter(l =>
+    (mode!=="byvac" || !fv || l.advertisement_id===fv) &&
+    (!q || l.full_name.toLowerCase().includes(q) || l.phone.includes(q)) &&
+    (!fv || l.advertisement_id===fv) && (!fb || l.brand===fb) && (!fr || l.region===fr) &&
+    (!fg || l.gender===fg) && (!fs || l.status===fs) &&
+    (l.age>=aMin && l.age<=aMax) && (!df || l.created_at>=df));
+}
+function apply() {
+  const list = filtered();
+  document.getElementById("count").textContent = `· ${list.length}`;
+  document.getElementById("rows").innerHTML = list.length ? list.map(l => `
+    <tr>
+      <td class="ttl">${l.full_name}</td><td>${l.phone}</td><td class="sub">${l.email||'—'}</td>
+      <td>${l.gender}</td><td>${l.age}</td><td>${l.region}</td>
+      <td><div class="sub">${l.job_type}</div><div class="sub">${l.advertisement_id}</div></td>
+      <td>${l.brand}</td><td>${l.created_at.split('-').reverse().join('.')}</td>
+      <td><span class="badge ${l.status==='Новый'?'green':l.status==='Приглашён'?'blue':'gray'}">${l.status}</span></td>
+    </tr>`).join("") : `<tr><td colspan="10" style="text-align:center;padding:40px" class="muted">Нет откликов по фильтрам</td></tr>`;
+}
+["q","fVac","fBrand","fRegion","fGender","fStatus","ageMin","ageMax","dateFrom"].forEach(id=>document.getElementById(id).addEventListener("input", apply));
+document.getElementById("reset").onclick = () => { ["q","fVac","fBrand","fRegion","fGender","fStatus","ageMin","ageMax","dateFrom"].forEach(id=>document.getElementById(id).value=""); apply(); };
+
+const HEADERS = [
+  {label:"ФИО", get:l=>l.full_name},{label:"Телефон", get:l=>l.phone},{label:"Email", get:l=>l.email||""},
+  {label:"Пол", get:l=>l.gender},{label:"Возраст", get:l=>l.age},{label:"Регион", get:l=>l.region},
+  {label:"Вакансия", get:l=>l.job_type},{label:"ID вакансии", get:l=>l.advertisement_id},
+  {label:"Бренд", get:l=>l.brand},{label:"Дата", get:l=>l.created_at},{label:"Статус", get:l=>l.status},
+];
+document.getElementById("expAll").onclick = () => exportCSV("Все_отклики.csv", LEADS, HEADERS);
+document.getElementById("expSel").onclick = () => {
+  if (!fVac.value) { toast("Выберите вакансию в фильтре"); return; }
+  exportCSV(`Отклики_${fVac.value}.csv`, filtered(), HEADERS);
+};
+apply();
+</script>
+</body>
+</html>

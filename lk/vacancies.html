@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Вакансии · ЛК Маркет вакансий — Ventra GO!</title>
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app">
+  <div id="shell"></div>
+  <div class="main">
+    <div class="topbar">
+      <div><h1>Вакансии</h1><div class="sub">Управление публикациями</div></div>
+      <a class="btn primary" href="vacancy-new.html"><span>➕</span> Новая вакансия</a>
+    </div>
+    <div class="content">
+      <div class="toolbar">
+        <div class="search"><input id="q" placeholder="Поиск по должности или ID…"></div>
+        <select id="fBrand"></select>
+        <select id="fJob"></select>
+        <select id="fEmp"></select>
+        <select id="fFormat"></select>
+        <select id="fStatus">
+          <option value="">Все статусы</option><option value="active">Активна</option>
+          <option value="paused">На паузе</option><option value="expired">Истекла</option>
+        </select>
+        <button class="btn ghost sm" id="reset">Сбросить</button>
+      </div>
+
+      <div class="panel">
+        <div class="head"><h3>Список вакансий <span id="count" class="muted"></span></h3>
+          <button class="btn sm" onclick="toast('Выгрузка вакансий в Excel')">⤓ Экспорт списка</button></div>
+        <div class="body" style="padding:0">
+          <table>
+            <thead><tr><th>Должность / ID</th><th>Бренд</th><th>Занятость</th><th>Формат</th><th>График</th><th>Зарплата</th><th>Адрес</th><th>Отклики</th><th>До</th><th>Статус</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+mountShell("vacancies.html");
+fillSelect(document.getElementById("fBrand"), DICT.brands, { all: "Все бренды" });
+fillSelect(document.getElementById("fJob"), DICT.job_type, { all: "Все должности" });
+fillSelect(document.getElementById("fEmp"), DICT.employment_type, { all: "Любая занятость" });
+fillSelect(document.getElementById("fFormat"), DICT.work_format, { all: "Любой формат" });
+
+function apply() {
+  const q = document.getElementById("q").value.toLowerCase().trim();
+  const fb = fBrand.value, fj = fJob.value, fe = fEmp.value, ff = fFormat.value, fs = fStatus.value;
+  const list = VACANCIES.filter(v =>
+    (!q || v.job_type.toLowerCase().includes(q) || v.advertisement_id.toLowerCase().includes(q)) &&
+    (!fb || v.brand===fb) && (!fj || v.job_type===fj) && (!fe || v.employment_type===fe) &&
+    (!ff || v.work_format===ff) && (!fs || v.status===fs));
+  document.getElementById("count").textContent = `· ${list.length}`;
+  document.getElementById("rows").innerHTML = list.length ? list.map(v => `
+    <tr>
+      <td><div class="ttl">${v.job_type}</div><div class="sub">${v.advertisement_id}</div></td>
+      <td>${v.brand}</td><td><span class="chip">${v.employment_type}</span></td>
+      <td>${v.work_format}</td><td>${v.work_schedule}</td><td>${money(v.wage)}</td>
+      <td class="sub">${v.work_format==='Удаленно'?'Удалённая':v.address}</td>
+      <td><a href="responses.html"><span class="badge blue">${v.leads}</span></a></td>
+      <td>${v.expires_at.split('-').reverse().join('.')}</td>
+      <td>${statusBadge(v.status)}</td>
+      <td><div class="row-actions">
+        <button class="btn sm" title="Редактировать" onclick="toast('Открыто редактирование ${v.advertisement_id}')">✎</button>
+        <button class="btn sm" title="Дублировать" onclick="toast('Вакансия дублирована')">⧉</button>
+        <button class="btn sm" title="Продлить" onclick="toast('Публикация продлена')">⟳</button>
+      </div></td>
+    </tr>`).join("") : `<tr><td colspan="11" style="text-align:center;padding:40px" class="muted">Нет вакансий по запросу</td></tr>`;
+}
+["q","fBrand","fJob","fEmp","fFormat","fStatus"].forEach(id => document.getElementById(id).addEventListener("input", apply));
+document.getElementById("reset").onclick = () => { ["q","fBrand","fJob","fEmp","fFormat","fStatus"].forEach(id=>document.getElementById(id).value=""); apply(); };
+apply();
+</script>
+</body>
+</html>
